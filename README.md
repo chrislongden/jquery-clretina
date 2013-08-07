@@ -14,7 +14,7 @@ CSS image sprites and background, this works as well as the script sets the elem
 
 It's simply plug and play...
 
-'''javascript
+```javascript
 $("body").clretina({
 	// Suffix for retina based files
         suffix: "@2x",
@@ -32,21 +32,21 @@ $("body").clretina({
         // This will automatically reset any background positions to the retina equivalent
         cssBackgroundsRetinaRatio: true
 });
-'''
+```
 
 ## Usage
 
 Really simple usage, below is an image, by default you will have to create the retina version in this folder "images/retina/myimage@2x.png"
 
-'''html
+```html
 <img src="images/myimage.png" border="0"/>
-'''
+```
 
 Include jQuery and this script, then when the document is ready run this. (Change 'body' to any element, this example just shows scanning the entire DOM).
 
-'''javascript
+```javascript
 $("body").clretina();
-'''
+```
 
 ## Release History
 
