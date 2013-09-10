@@ -7,9 +7,14 @@
 * Dual licensed under the MIT and GPL licenses.
 *
 */
-(function ( $ ) {
+
+var clRetinaValidUrls = [];
+var clRetinaInvalidUrls = [];
+
+(function ($) {
 
     $.fn.clretina = function (options) {
+
 
         var isRetinaDevice = false;
 
@@ -29,7 +34,9 @@
             // Process CSS background images
             cssBackgrounds: true,
             // This will automatically reset any background positions to the retina equivalent
-            cssBackgroundsRetinaRatio: true
+            cssBackgroundsRetinaRatio: true,
+            // Prompt to download retina images
+            //downloadPrompt: false
         };
 
         if (options) {
@@ -42,11 +49,18 @@
         }
 
         // Uncomment for desktop debugging!
-        //isRetinaDevice = true;
+        isRetinaDevice = true;        
 
         // Check and return
         if (isRetinaDevice) {
-            return checkChildren($(this), isRetinaDevice, settings);
+            //if (settings.downloadPrompt) {
+            //    var dlr = prompt("We have detected your viewing our website on a retina display, do you want to download high resolution images?", false);
+            //    if (dlr) {
+            //        return checkChildren($(this), isRetinaDevice, settings);
+            //    }
+            //} else {
+                return checkChildren($(this), isRetinaDevice, settings);
+            //}
         } else {
             return this;
         }
@@ -74,15 +88,27 @@
         {
             var exists = !settings.checkExists;
             if (settings.checkExists) {
-                jQuery.ajax(
-                    filename,
-                    { type: "HEAD", async: false }
-                ).done(function (data, status, response) {
-                    // Found file but check content type for an image
-                    if (response.getResponseHeader('Content-Type').match("^image/")) {
-                        exists = true;
+                if (clRetinaValidUrls.indexOf(filename) > -1) {
+                    exists = true;
+                } else {
+                    if (clRetinaInvalidUrls.indexOf(filename) > -1) {
+                        exists = false;
+                    } else {
+                        jQuery.ajax(
+                            filename,
+                            { type: "HEAD", async: false }
+                        ).done(function (data, status, response) {
+                            // Found file but check content type for an image
+                            if (response.getResponseHeader('Content-Type').match("^image/")) {
+                                clRetinaValidUrls.push(filename);
+                                exists = true;
+                            }
+                        }).fail(function () {
+                            clRetinaInvalidUrls.push(filename);
+                            exists = false;
+                        });
                     }
-                });
+                }
             }
             return exists;
         }
@@ -91,24 +117,26 @@
 
             // Check is IMG element
             if (obj.is("img")) {
-                // Get image source
-                var imgSrc = obj.attr('src');
-                //alert(imgSrc);
-                // Check source is available
-                if (imgSrc != undefined) {
-                    // Generate retina filename
-                    var imgSrcNew = generateRetinaFileName(imgSrc, settings);
-                    // Check new and original are not the same
-                    if (imgSrcNew != imgSrc) {
-                        // Check file exists
-                        if (checkFileExists(imgSrcNew, settings)) {
-                            if (settings.imageTagsRetinaRatio) {
-                                if (obj.attr('data-retinaratio') == undefined || obj.attr('data-retinaratio') == true) {
-                                    if (obj.attr('width') == undefined) obj.attr('width', obj.width());
-                                    if (obj.attr('height') == undefined) obj.attr('height', obj.height());
+                if (obj.attr("data-clretina") == undefined) {
+                    // Get image source
+                    var imgSrc = obj.attr('src');
+                    // Check source is available
+                    if (imgSrc != undefined) {
+                        // Generate retina filename
+                        var imgSrcNew = generateRetinaFileName(imgSrc, settings);
+                        // Check new and original are not the same
+                        if (imgSrcNew != imgSrc) {
+                            // Check file exists
+                            if (checkFileExists(imgSrcNew, settings)) {
+                                if (settings.imageTagsRetinaRatio) {
+                                    if (obj.attr('data-retinaratio') == undefined || obj.attr('data-retinaratio') == true) {
+                                        if (obj.attr('width') == undefined) obj.attr('width', obj.width());
+                                        if (obj.attr('height') == undefined) obj.attr('height', obj.height());
+                                    }
                                 }
+                                obj.attr('src', imgSrcNew);
+                                obj.attr("data-clretina", "set");
                             }
-                            obj.attr('src', imgSrcNew);
                         }
                     }
                 }
@@ -118,27 +146,30 @@
             var cssSrc = obj.css('background-image');
             if (cssSrc != undefined) {
                 if (cssSrc != 'none') {
-                    if (cssSrc.match("^url")) {
-                        // Remove the URL css prefix
-                        cssSrc = cssSrc.replace("url(\"", "").replace("\")", "");
-                        // Get the background position
-                        var cssPosition = obj.css('background-position');
-                        // Generate retina filename
-                        var cssSrcNew = generateRetinaFileName(cssSrc, settings);
-                        // Check new and original are not the same
-                        if (cssSrcNew != cssSrc) {
-                            // Check file exists
-                            if (checkFileExists(cssSrcNew, settings)) {
-                                obj.css('background-image', 'url(' + cssSrcNew + ')');
-                                if (settings.cssBackgroundsRetinaRatio) {
-                                    if (obj.attr('data-retinaratio') == undefined || obj.attr('data-retinaratio') == true) {
-                                        // Reset the background image size
-                                        var img = new Image;
-                                        img.src = cssSrc;
-                                        obj.css('background-size', img.width + 'px ' + img.height + 'px');
-                                        img = null;
+                    if (cssSrc.match("^url")) {                        
+                        if (obj.attr("data-clretina") == undefined) {
+                            // Remove the URL css prefix
+                            cssSrc = cssSrc.replace("url(\"", "").replace("\")", "");
+                            // Get the background position
+                            var cssPosition = obj.css('background-position');
+                            // Generate retina filename
+                            var cssSrcNew = generateRetinaFileName(cssSrc, settings);
+                            // Check new and original are not the same
+                            if (cssSrcNew != cssSrc) {
+                                // Check file exists
+                                if (checkFileExists(cssSrcNew, settings)) {
+                                    obj.css('background-image', 'url(' + cssSrcNew + ')');
+                                    obj.attr("data-clretina", "set");
+                                    if (settings.cssBackgroundsRetinaRatio) {
+                                        if (obj.attr('data-retinaratio') == undefined || obj.attr('data-retinaratio') == true) {
+                                            // Reset the background image size
+                                            var img = new Image;
+                                            img.src = cssSrc;
+                                            obj.css('background-size', img.width + 'px ' + img.height + 'px');
+                                            img = null;
+                                        }
                                     }
-                                }                                
+                                }
                             }
                         }
                     }
